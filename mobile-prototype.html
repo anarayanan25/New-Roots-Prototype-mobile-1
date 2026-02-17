@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>New Roots - Mobile Prototype</title>
     <style>
         * {
@@ -12,20 +14,27 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #FEF3E2;
             color: #78350F;
-            overflow-x: hidden;
-            height: 100vh;
-            touch-action: pan-y;
+            overscroll-behavior: none;
         }
 
         /* Home Screen */
         .screen {
             display: none;
             height: 100vh;
+            height: 100dvh;
             flex-direction: column;
+            overflow: hidden;
         }
 
         .screen.active {
@@ -39,6 +48,7 @@
             padding: 20px 20px 30px;
             border-radius: 0 0 30px 30px;
             box-shadow: 0 4px 20px rgba(204, 120, 92, 0.3);
+            flex-shrink: 0;
         }
 
         .status-bar {
@@ -87,6 +97,7 @@
             display: flex;
             justify-content: space-around;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            flex-shrink: 0;
         }
 
         .stat {
@@ -117,6 +128,7 @@
             flex: 1;
             overflow: hidden;
             position: relative;
+            min-height: 0;
         }
 
         .situation {
@@ -158,13 +170,11 @@
             border-radius: 24px;
             padding: 30px 25px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            cursor: grab;
-            touch-action: none;
+            will-change: transform, opacity;
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .choice-card.dragging {
-            cursor: grabbing;
             transition: none;
         }
 
@@ -269,6 +279,7 @@
             background: white;
             border-radius: 30px 30px 0 0;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+            flex-shrink: 0;
         }
 
         .swipe-hint {
@@ -309,6 +320,7 @@
             transition: all 0.3s;
             flex: 1;
             max-width: 200px;
+            -webkit-appearance: none;
         }
 
         .btn-primary {
@@ -371,6 +383,7 @@
             border: none;
             cursor: pointer;
             transition: all 0.3s;
+            -webkit-appearance: none;
         }
 
         .home-btn-primary {
@@ -489,9 +502,9 @@
         <h1 class="home-title">New Roots</h1>
         <p class="home-subtitle">A Story of Immigration</p>
         <div class="home-buttons">
-            <button class="home-btn home-btn-primary" onclick="showWaiting()">🎮 Host Game</button>
-            <button class="home-btn home-btn-secondary" onclick="showGame()">📱 Join Game</button>
-            <button class="home-btn home-btn-secondary" onclick="showGame()">ℹ️ How to Play</button>
+            <button class="home-btn home-btn-primary" id="hostBtn">🎮 Host Game</button>
+            <button class="home-btn home-btn-secondary" id="joinBtn">📱 Join Game</button>
+            <button class="home-btn home-btn-secondary" id="howToBtn">ℹ️ How to Play</button>
         </div>
     </div>
 </div>
@@ -504,7 +517,7 @@
         </div>
         <p class="waiting-text">Waiting for Player 2...</p>
         <p class="connection-code">XK4-892</p>
-        <button class="btn btn-secondary" onclick="showHome()">Cancel</button>
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
     </div>
 </div>
 
@@ -610,210 +623,236 @@
 
     <!-- Bottom Actions -->
     <div class="bottom-actions">
-        <div class="swipe-hint">
+        <div class="swipe-hint" id="swipeHint">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 5v14M5 12l7 7 7-7"/>
             </svg>
             <span>Swipe up/down to browse choices</span>
         </div>
         <div class="action-buttons">
-            <button class="btn btn-primary" onclick="selectCurrentCard()">Select This Choice</button>
+            <button class="btn btn-primary" id="selectBtn">Select This Choice</button>
         </div>
     </div>
 </div>
 
 <script>
-let currentCardIndex = 0;
-let selectedChoiceData = null;
-const cards = document.querySelectorAll('.choice-card');
+(function() {
+    'use strict';
 
-// Initialize touch handling
-function initCardSwipe() {
-    cards.forEach((card, index) => {
-        let startY = 0;
-        let currentY = 0;
-        let isDragging = false;
+    let currentCardIndex = 0;
+    let selectedChoiceData = null;
+    const cards = document.querySelectorAll('.choice-card');
 
-        card.addEventListener('touchstart', (e) => {
-            if (index !== currentCardIndex) return;
-            startY = e.touches[0].clientY;
-            isDragging = true;
-            card.classList.add('dragging');
-        });
+    // Button references
+    const hostBtn = document.getElementById('hostBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    const howToBtn = document.getElementById('howToBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const selectBtn = document.getElementById('selectBtn');
 
-        card.addEventListener('touchmove', (e) => {
-            if (!isDragging || index !== currentCardIndex) return;
-            e.preventDefault();
-            currentY = e.touches[0].clientY;
-            const deltaY = currentY - startY;
+    // Initialize touch handling
+    function initCardSwipe() {
+        cards.forEach((card, index) => {
+            let startY = 0;
+            let currentY = 0;
+            let isDragging = false;
 
-            card.style.transform = `translateY(${deltaY}px)`;
-            card.style.opacity = 1 - Math.abs(deltaY) / 500;
+            card.addEventListener('touchstart', handleTouchStart, { passive: true });
+            card.addEventListener('touchmove', handleTouchMove, { passive: false });
+            card.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-            // Show swipe indicators
-            if (Math.abs(deltaY) > 50) {
-                if (deltaY < 0) {
-                    // Swiping up - next card
-                    document.querySelector('.swipe-indicator.right').style.opacity = Math.min(Math.abs(deltaY) / 150, 1);
-                } else {
-                    // Swiping down - previous card
-                    document.querySelector('.swipe-indicator.left').style.opacity = Math.min(Math.abs(deltaY) / 150, 1);
+            function handleTouchStart(e) {
+                if (index !== currentCardIndex) return;
+                startY = e.touches[0].clientY;
+                isDragging = true;
+                card.classList.add('dragging');
+            }
+
+            function handleTouchMove(e) {
+                if (!isDragging || index !== currentCardIndex) return;
+                e.preventDefault();
+                currentY = e.touches[0].clientY;
+                const deltaY = currentY - startY;
+
+                card.style.transform = `translateY(${deltaY}px)`;
+                card.style.opacity = 1 - Math.abs(deltaY) / 500;
+
+                // Show swipe indicators
+                if (Math.abs(deltaY) > 50) {
+                    if (deltaY < 0) {
+                        document.querySelector('.swipe-indicator.right').style.opacity = Math.min(Math.abs(deltaY) / 150, 1);
+                    } else {
+                        document.querySelector('.swipe-indicator.left').style.opacity = Math.min(Math.abs(deltaY) / 150, 1);
+                    }
                 }
             }
-        });
 
-        card.addEventListener('touchend', (e) => {
-            if (!isDragging || index !== currentCardIndex) return;
-            isDragging = false;
-            card.classList.remove('dragging');
+            function handleTouchEnd(e) {
+                if (!isDragging || index !== currentCardIndex) return;
+                isDragging = false;
+                card.classList.remove('dragging');
 
-            const deltaY = currentY - startY;
-            document.querySelector('.swipe-indicator.left').style.opacity = 0;
-            document.querySelector('.swipe-indicator.right').style.opacity = 0;
+                const deltaY = currentY - startY;
+                document.querySelector('.swipe-indicator.left').style.opacity = 0;
+                document.querySelector('.swipe-indicator.right').style.opacity = 0;
 
-            if (Math.abs(deltaY) > 100) {
-                if (deltaY < 0 && currentCardIndex < cards.length - 1) {
-                    // Swipe up - next card
-                    swipeCard('next');
-                } else if (deltaY > 0 && currentCardIndex > 0) {
-                    // Swipe down - previous card
-                    swipeCard('prev');
+                if (Math.abs(deltaY) > 100) {
+                    if (deltaY < 0 && currentCardIndex < cards.length - 1) {
+                        swipeCard('next');
+                    } else if (deltaY > 0 && currentCardIndex > 0) {
+                        swipeCard('prev');
+                    } else {
+                        resetCard(card);
+                    }
                 } else {
                     resetCard(card);
                 }
-            } else {
-                resetCard(card);
             }
         });
-    });
-}
-
-function swipeCard(direction) {
-    const currentCard = cards[currentCardIndex];
-
-    if (direction === 'next') {
-        currentCard.style.transform = 'translateY(-500px)';
-        currentCard.style.opacity = '0';
-        currentCardIndex++;
-    } else {
-        currentCard.style.transform = 'translateY(500px)';
-        currentCard.style.opacity = '0';
-        currentCardIndex--;
     }
 
-    setTimeout(() => {
-        updateCardStack();
-        resetCard(currentCard);
-    }, 300);
+    function swipeCard(direction) {
+        const currentCard = cards[currentCardIndex];
 
-    // Haptic feedback
-    if (navigator.vibrate) {
-        navigator.vibrate(10);
-    }
-}
-
-function resetCard(card) {
-    card.style.transform = '';
-    card.style.opacity = '';
-}
-
-function updateCardStack() {
-    cards.forEach((card, index) => {
-        const diff = index - currentCardIndex;
-
-        if (diff === 0) {
-            card.style.zIndex = '3';
-            card.style.transform = 'translateY(0) scale(1)';
-            card.style.opacity = '1';
-        } else if (diff === 1) {
-            card.style.zIndex = '2';
-            card.style.transform = 'translateY(10px) scale(0.95)';
-            card.style.opacity = '0.7';
-        } else if (diff === 2) {
-            card.style.zIndex = '1';
-            card.style.transform = 'translateY(20px) scale(0.9)';
-            card.style.opacity = '0.4';
+        if (direction === 'next') {
+            currentCard.style.transform = 'translateY(-500px)';
+            currentCard.style.opacity = '0';
+            currentCardIndex++;
         } else {
-            card.style.zIndex = '0';
-            card.style.transform = 'translateY(30px) scale(0.85)';
-            card.style.opacity = '0';
+            currentCard.style.transform = 'translateY(500px)';
+            currentCard.style.opacity = '0';
+            currentCardIndex--;
         }
-    });
-}
 
-function selectCurrentCard() {
-    const currentCard = cards[currentCardIndex];
-    const title = currentCard.querySelector('.choice-title').textContent;
+        setTimeout(() => {
+            updateCardStack();
+            resetCard(currentCard);
+        }, 300);
 
-    selectedChoiceData = {
-        number: currentCardIndex + 1,
-        title: title
-    };
+        // Haptic feedback
+        if (navigator.vibrate) {
+            navigator.vibrate(10);
+        }
+    }
 
-    // Show selected choice
-    document.getElementById('selectedTitle').textContent = title;
-    document.getElementById('selectedChoice').classList.add('active');
-    document.getElementById('partnerStatus').classList.add('active');
+    function resetCard(card) {
+        card.style.transform = '';
+        card.style.opacity = '';
+    }
 
-    // Hide card stack
-    document.getElementById('cardStack').style.display = 'none';
-    document.querySelector('.swipe-hint').textContent = '✓ Waiting for partner...';
-    document.querySelector('.btn-primary').textContent = 'Change Choice';
-    document.querySelector('.btn-primary').onclick = () => {
+    function updateCardStack() {
+        cards.forEach((card, index) => {
+            const diff = index - currentCardIndex;
+
+            if (diff === 0) {
+                card.style.zIndex = '3';
+                card.style.transform = 'translateY(0) scale(1)';
+                card.style.opacity = '1';
+            } else if (diff === 1) {
+                card.style.zIndex = '2';
+                card.style.transform = 'translateY(10px) scale(0.95)';
+                card.style.opacity = '0.7';
+            } else if (diff === 2) {
+                card.style.zIndex = '1';
+                card.style.transform = 'translateY(20px) scale(0.9)';
+                card.style.opacity = '0.4';
+            } else {
+                card.style.zIndex = '0';
+                card.style.transform = 'translateY(30px) scale(0.85)';
+                card.style.opacity = '0';
+            }
+        });
+    }
+
+    function selectCurrentCard() {
+        const currentCard = cards[currentCardIndex];
+        const title = currentCard.querySelector('.choice-title').textContent;
+
+        selectedChoiceData = {
+            number: currentCardIndex + 1,
+            title: title
+        };
+
+        // Show selected choice
+        document.getElementById('selectedTitle').textContent = title;
+        document.getElementById('selectedChoice').classList.add('active');
+        document.getElementById('partnerStatus').classList.add('active');
+
+        // Hide card stack
+        document.getElementById('cardStack').style.display = 'none';
+        document.getElementById('swipeHint').textContent = '✓ Waiting for partner...';
+        selectBtn.textContent = 'Change Choice';
+        selectBtn.onclick = changeChoice;
+
+        // Haptic feedback
+        if (navigator.vibrate) {
+            navigator.vibrate([50, 30, 50]);
+        }
+
+        // Simulate partner choosing
+        setTimeout(() => {
+            const statusText = document.getElementById('partnerStatus').querySelector('.partner-status-text');
+            statusText.textContent = '✓ Partner has chosen!';
+            document.getElementById('partnerStatus').style.background = '#D1FAE5';
+            document.getElementById('partnerStatus').style.borderColor = '#10B981';
+            document.getElementById('swipeHint').textContent = '✓ Both players ready!';
+        }, 2000);
+    }
+
+    function changeChoice() {
         document.getElementById('cardStack').style.display = 'block';
         document.getElementById('selectedChoice').classList.remove('active');
-        document.querySelector('.swipe-hint').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg><span>Swipe up/down to browse choices</span>';
-        document.querySelector('.btn-primary').textContent = 'Select This Choice';
-        document.querySelector('.btn-primary').onclick = selectCurrentCard;
-    };
-
-    // Haptic feedback
-    if (navigator.vibrate) {
-        navigator.vibrate([50, 30, 50]);
+        document.getElementById('swipeHint').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg><span>Swipe up/down to browse choices</span>';
+        selectBtn.textContent = 'Select This Choice';
+        selectBtn.onclick = selectCurrentCard;
     }
 
-    // Simulate partner choosing
-    setTimeout(() => {
-        document.getElementById('partnerStatus').querySelector('.partner-status-text').textContent = '✓ Partner has chosen!';
-        document.getElementById('partnerStatus').style.background = '#D1FAE5';
-        document.getElementById('partnerStatus').style.borderColor = '#10B981';
-        document.querySelector('.swipe-hint').textContent = '✓ Both players ready!';
-    }, 2000);
-}
+    function showHome() {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('homeScreen').classList.add('active');
+    }
 
-function showHome() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('homeScreen').classList.add('active');
-}
+    function showWaiting() {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('waitingScreen').classList.add('active');
 
-function showWaiting() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('waitingScreen').classList.add('active');
+        setTimeout(() => {
+            showGame();
+        }, 3000);
+    }
 
-    // Simulate connection after 3 seconds
-    setTimeout(() => {
-        showGame();
-    }, 3000);
-}
+    function showGame() {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('gameScreen').classList.add('active');
+    }
 
-function showGame() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('gameScreen').classList.add('active');
-}
+    // Button event listeners
+    hostBtn.addEventListener('click', showWaiting);
+    joinBtn.addEventListener('click', showGame);
+    howToBtn.addEventListener('click', showGame);
+    cancelBtn.addEventListener('click', showHome);
+    selectBtn.addEventListener('click', selectCurrentCard);
 
-// Initialize on load
-initCardSwipe();
-updateCardStack();
-
-// Add tap animation to buttons
-document.querySelectorAll('.btn, .home-btn').forEach(btn => {
-    btn.addEventListener('touchstart', () => {
-        btn.style.transform = 'scale(0.95)';
+    // Add tap animation to buttons
+    document.querySelectorAll('.btn, .home-btn').forEach(btn => {
+        btn.addEventListener('touchstart', () => {
+            btn.style.transform = 'scale(0.95)';
+        }, { passive: true });
+        btn.addEventListener('touchend', () => {
+            btn.style.transform = 'scale(1)';
+        }, { passive: true });
     });
-    btn.addEventListener('touchend', () => {
-        btn.style.transform = 'scale(1)';
-    });
-});
+
+    // Initialize on load
+    initCardSwipe();
+    updateCardStack();
+
+    // Prevent bounce scrolling on iOS
+    document.body.addEventListener('touchmove', (e) => {
+        if (e.target.closest('.choice-card')) return;
+        e.preventDefault();
+    }, { passive: false });
+})();
 </script>
 
 </body>
