@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>New Roots - Mobile Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FEF3E2;
+            color: #78350F;
+            overflow-x: hidden;
+            height: 100vh;
+            touch-action: pan-y;
+        }
+
+        /* Home Screen */
+        .screen {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #CC785C 0%, #D4896D 100%);
+            color: white;
+            padding: 20px 20px 30px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(204, 120, 92, 0.3);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            background: #4ADE80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .episode-info h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .episode-info p {
+            font-size: 14px;
+            opacity: 0.95;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            background: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-icon {
+            font-size: 20px;
+        }
+
+        .stat-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #78350F;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #C2410C;
+            text-transform: uppercase;
+        }
+
+        /* Main Content */
+        .content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .situation {
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .situation h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #C2410C;
+        }
+
+        .situation-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #78350F;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* Card Stack Container */
+        .card-stack {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            transform: translateY(-50%);
+            height: 400px;
+            padding: 0 20px;
+        }
+
+        .choice-card {
+            position: absolute;
+            width: calc(100% - 40px);
+            left: 20px;
+            background: white;
+            border-radius: 24px;
+            padding: 30px 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            cursor: grab;
+            touch-action: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .choice-card.dragging {
+            cursor: grabbing;
+            transition: none;
+        }
+
+        .choice-card:nth-child(1) {
+            z-index: 3;
+            transform: translateY(0) scale(1);
+        }
+
+        .choice-card:nth-child(2) {
+            z-index: 2;
+            transform: translateY(10px) scale(0.95);
+            opacity: 0.7;
+        }
+
+        .choice-card:nth-child(3) {
+            z-index: 1;
+            transform: translateY(20px) scale(0.9);
+            opacity: 0.4;
+        }
+
+        .choice-number {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #CC785C, #D4896D);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .choice-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #CC785C;
+            margin-bottom: 15px;
+            padding-right: 40px;
+        }
+
+        .choice-description {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #78350F;
+            margin-bottom: 20px;
+        }
+
+        .choice-impacts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .impact-tag {
+            padding: 6px 12px;
+            background: #FEF3E2;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #C2410C;
+            border: 1px solid #F59E0B;
+        }
+
+        .impact-tag.positive {
+            background: #D1FAE5;
+            border-color: #10B981;
+            color: #065F46;
+        }
+
+        .impact-tag.negative {
+            background: #FEE2E2;
+            border-color: #EF4444;
+            color: #991B1B;
+        }
+
+        /* Swipe Indicators */
+        .swipe-indicator {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 60px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .swipe-indicator.left {
+            left: 30px;
+        }
+
+        .swipe-indicator.right {
+            right: 30px;
+        }
+
+        /* Bottom Actions */
+        .bottom-actions {
+            padding: 20px;
+            background: white;
+            border-radius: 30px 30px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+        }
+
+        .swipe-hint {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #C2410C;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .swipe-hint svg {
+            width: 20px;
+            height: 20px;
+            animation: bounce 1.5s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 200px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #CC785C, #D4896D);
+            color: white;
+            box-shadow: 0 4px 15px rgba(204, 120, 92, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.95);
+        }
+
+        .btn-secondary {
+            background: #FEF3E2;
+            color: #CC785C;
+            border: 2px solid #CC785C;
+        }
+
+        /* Home Screen */
+        .home-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .home-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #CC785C;
+            margin-bottom: 10px;
+        }
+
+        .home-subtitle {
+            font-size: 16px;
+            color: #78350F;
+            margin-bottom: 50px;
+        }
+
+        .home-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .home-btn {
+            padding: 18px;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .home-btn-primary {
+            background: linear-gradient(135deg, #CC785C, #D4896D);
+            color: white;
+            box-shadow: 0 4px 20px rgba(204, 120, 92, 0.3);
+        }
+
+        .home-btn-secondary {
+            background: white;
+            color: #CC785C;
+            border: 2px solid #CC785C;
+        }
+
+        /* Waiting Screen */
+        .waiting-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px 20px;
+        }
+
+        .qr-container {
+            background: white;
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .qr-placeholder {
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(135deg, #FEF3E2 0%, #FED7AA 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 100px;
+        }
+
+        .waiting-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: #CC785C;
+            margin-bottom: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-code {
+            font-size: 32px;
+            font-weight: 700;
+            color: #78350F;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Partner Choice Indicator */
+        .partner-status {
+            padding: 15px 20px;
+            background: #E0F2FE;
+            border-left: 4px solid #0EA5E9;
+            margin: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .partner-status.active {
+            display: block;
+        }
+
+        .partner-status-text {
+            font-size: 14px;
+            color: #075985;
+            font-weight: 500;
+        }
+
+        /* Selected Choice Display */
+        .selected-choice {
+            margin: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .selected-choice.active {
+            display: block;
+        }
+
+        .selected-label {
+            font-size: 12px;
+            color: #C2410C;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .selected-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #CC785C;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Home Screen -->
+<div id="homeScreen" class="screen active">
+    <div class="home-screen">
+        <div class="logo">🍁</div>
+        <h1 class="home-title">New Roots</h1>
+        <p class="home-subtitle">A Story of Immigration</p>
+        <div class="home-buttons">
+            <button class="home-btn home-btn-primary" onclick="showWaiting()">🎮 Host Game</button>
+            <button class="home-btn home-btn-secondary" onclick="showGame()">📱 Join Game</button>
+            <button class="home-btn home-btn-secondary" onclick="showGame()">ℹ️ How to Play</button>
+        </div>
+    </div>
+</div>
+
+<!-- Waiting Screen -->
+<div id="waitingScreen" class="screen">
+    <div class="waiting-content">
+        <div class="qr-container">
+            <div class="qr-placeholder">📱</div>
+        </div>
+        <p class="waiting-text">Waiting for Player 2...</p>
+        <p class="connection-code">XK4-892</p>
+        <button class="btn btn-secondary" onclick="showHome()">Cancel</button>
+    </div>
+</div>
+
+<!-- Game Screen -->
+<div id="gameScreen" class="screen">
+    <!-- Header -->
+    <div class="header">
+        <div class="status-bar">
+            <div class="connection-status">
+                <div class="connection-dot"></div>
+                <span>Connected</span>
+            </div>
+            <span>Episode 1 of 10</span>
+        </div>
+        <div class="episode-info">
+            <h1>First Night</h1>
+            <p>Toronto Pearson Airport · 11:00 PM</p>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value">$5,000</div>
+            <div class="stat-label">Money</div>
+        </div>
+        <div class="stat">
+            <div class="stat-icon">😰</div>
+            <div class="stat-value">75%</div>
+            <div class="stat-label">Stress</div>
+        </div>
+        <div class="stat">
+            <div class="stat-icon">❤️</div>
+            <div class="stat-value">90%</div>
+            <div class="stat-label">Relationship</div>
+        </div>
+        <div class="stat">
+            <div class="stat-icon">🤝</div>
+            <div class="stat-value">85%</div>
+            <div class="stat-label">Trust</div>
+        </div>
+    </div>
+
+    <!-- Partner Status -->
+    <div class="partner-status" id="partnerStatus">
+        <p class="partner-status-text">👤 Partner is choosing...</p>
+    </div>
+
+    <!-- Selected Choice -->
+    <div class="selected-choice" id="selectedChoice">
+        <p class="selected-label">Your Choice:</p>
+        <p class="selected-title" id="selectedTitle">-</p>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <div class="situation">
+            <h2>Where will you stay tonight?</h2>
+            <p class="situation-text">You've just landed in Toronto. It's late, you're exhausted, and you need to decide where to spend your first night.</p>
+        </div>
+
+        <!-- Card Stack -->
+        <div class="card-stack" id="cardStack">
+            <div class="swipe-indicator left">👈</div>
+            <div class="swipe-indicator right">👉</div>
+
+            <!-- Card 1 -->
+            <div class="choice-card" data-choice="1">
+                <div class="choice-number">1</div>
+                <h3 class="choice-title">Budget Hotel</h3>
+                <p class="choice-description">Find a cheap hotel near the airport. Safe but expensive for your budget.</p>
+                <div class="choice-impacts">
+                    <span class="impact-tag negative">💰 -$120</span>
+                    <span class="impact-tag positive">😰 -10% Stress</span>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="choice-card" data-choice="2">
+                <div class="choice-number">2</div>
+                <h3 class="choice-title">Community Shelter</h3>
+                <p class="choice-description">Stay at a newcomer shelter. Free, but might feel uncomfortable.</p>
+                <div class="choice-impacts">
+                    <span class="impact-tag positive">💰 Free</span>
+                    <span class="impact-tag negative">😰 +15% Stress</span>
+                    <span class="impact-tag positive">🤝 +5% Trust</span>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="choice-card" data-choice="3">
+                <div class="choice-number">3</div>
+                <h3 class="choice-title">Friend's Couch</h3>
+                <p class="choice-description">Call a distant relative. They might help, but you'd owe them a favor.</p>
+                <div class="choice-impacts">
+                    <span class="impact-tag positive">💰 Free</span>
+                    <span class="impact-tag">❤️ Depends on relationship</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Actions -->
+    <div class="bottom-actions">
+        <div class="swipe-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+            <span>Swipe up/down to browse choices</span>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="selectCurrentCard()">Select This Choice</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCardIndex = 0;
+let selectedChoiceData = null;
+const cards = document.querySelectorAll('.choice-card');
+
+// Initialize touch handling
+function initCardSwipe() {
+    cards.forEach((card, index) => {
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        card.addEventListener('touchstart', (e) => {
+            if (index !== currentCardIndex) return;
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            card.classList.add('dragging');
+        });
+
+        card.addEventListener('touchmove', (e) => {
+            if (!isDragging || index !== currentCardIndex) return;
+            e.preventDefault();
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+
+            card.style.transform = `translateY(${deltaY}px)`;
+            card.style.opacity = 1 - Math.abs(deltaY) / 500;
+
+            // Show swipe indicators
+            if (Math.abs(deltaY) > 50) {
+                if (deltaY < 0) {
+                    // Swiping up - next card
+                    document.querySelector('.swipe-indicator.right').style.opacity = Math.min(Math.abs(deltaY) / 150, 1);
+                } else {
+                    // Swiping down - previous card
+                    document.querySelector('.swipe-indicator.left').style.opacity = Math.min(Math.abs(deltaY) / 150, 1);
+                }
+            }
+        });
+
+        card.addEventListener('touchend', (e) => {
+            if (!isDragging || index !== currentCardIndex) return;
+            isDragging = false;
+            card.classList.remove('dragging');
+
+            const deltaY = currentY - startY;
+            document.querySelector('.swipe-indicator.left').style.opacity = 0;
+            document.querySelector('.swipe-indicator.right').style.opacity = 0;
+
+            if (Math.abs(deltaY) > 100) {
+                if (deltaY < 0 && currentCardIndex < cards.length - 1) {
+                    // Swipe up - next card
+                    swipeCard('next');
+                } else if (deltaY > 0 && currentCardIndex > 0) {
+                    // Swipe down - previous card
+                    swipeCard('prev');
+                } else {
+                    resetCard(card);
+                }
+            } else {
+                resetCard(card);
+            }
+        });
+    });
+}
+
+function swipeCard(direction) {
+    const currentCard = cards[currentCardIndex];
+
+    if (direction === 'next') {
+        currentCard.style.transform = 'translateY(-500px)';
+        currentCard.style.opacity = '0';
+        currentCardIndex++;
+    } else {
+        currentCard.style.transform = 'translateY(500px)';
+        currentCard.style.opacity = '0';
+        currentCardIndex--;
+    }
+
+    setTimeout(() => {
+        updateCardStack();
+        resetCard(currentCard);
+    }, 300);
+
+    // Haptic feedback
+    if (navigator.vibrate) {
+        navigator.vibrate(10);
+    }
+}
+
+function resetCard(card) {
+    card.style.transform = '';
+    card.style.opacity = '';
+}
+
+function updateCardStack() {
+    cards.forEach((card, index) => {
+        const diff = index - currentCardIndex;
+
+        if (diff === 0) {
+            card.style.zIndex = '3';
+            card.style.transform = 'translateY(0) scale(1)';
+            card.style.opacity = '1';
+        } else if (diff === 1) {
+            card.style.zIndex = '2';
+            card.style.transform = 'translateY(10px) scale(0.95)';
+            card.style.opacity = '0.7';
+        } else if (diff === 2) {
+            card.style.zIndex = '1';
+            card.style.transform = 'translateY(20px) scale(0.9)';
+            card.style.opacity = '0.4';
+        } else {
+            card.style.zIndex = '0';
+            card.style.transform = 'translateY(30px) scale(0.85)';
+            card.style.opacity = '0';
+        }
+    });
+}
+
+function selectCurrentCard() {
+    const currentCard = cards[currentCardIndex];
+    const title = currentCard.querySelector('.choice-title').textContent;
+
+    selectedChoiceData = {
+        number: currentCardIndex + 1,
+        title: title
+    };
+
+    // Show selected choice
+    document.getElementById('selectedTitle').textContent = title;
+    document.getElementById('selectedChoice').classList.add('active');
+    document.getElementById('partnerStatus').classList.add('active');
+
+    // Hide card stack
+    document.getElementById('cardStack').style.display = 'none';
+    document.querySelector('.swipe-hint').textContent = '✓ Waiting for partner...';
+    document.querySelector('.btn-primary').textContent = 'Change Choice';
+    document.querySelector('.btn-primary').onclick = () => {
+        document.getElementById('cardStack').style.display = 'block';
+        document.getElementById('selectedChoice').classList.remove('active');
+        document.querySelector('.swipe-hint').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg><span>Swipe up/down to browse choices</span>';
+        document.querySelector('.btn-primary').textContent = 'Select This Choice';
+        document.querySelector('.btn-primary').onclick = selectCurrentCard;
+    };
+
+    // Haptic feedback
+    if (navigator.vibrate) {
+        navigator.vibrate([50, 30, 50]);
+    }
+
+    // Simulate partner choosing
+    setTimeout(() => {
+        document.getElementById('partnerStatus').querySelector('.partner-status-text').textContent = '✓ Partner has chosen!';
+        document.getElementById('partnerStatus').style.background = '#D1FAE5';
+        document.getElementById('partnerStatus').style.borderColor = '#10B981';
+        document.querySelector('.swipe-hint').textContent = '✓ Both players ready!';
+    }, 2000);
+}
+
+function showHome() {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('homeScreen').classList.add('active');
+}
+
+function showWaiting() {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('waitingScreen').classList.add('active');
+
+    // Simulate connection after 3 seconds
+    setTimeout(() => {
+        showGame();
+    }, 3000);
+}
+
+function showGame() {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('gameScreen').classList.add('active');
+}
+
+// Initialize on load
+initCardSwipe();
+updateCardStack();
+
+// Add tap animation to buttons
+document.querySelectorAll('.btn, .home-btn').forEach(btn => {
+    btn.addEventListener('touchstart', () => {
+        btn.style.transform = 'scale(0.95)';
+    });
+    btn.addEventListener('touchend', () => {
+        btn.style.transform = 'scale(1)';
+    });
+});
+</script>
+
+</body>
+</html>
